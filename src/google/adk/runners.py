@@ -826,24 +826,25 @@ class Runner:
                       session=session, event=event
                   )
           else:
+            # Run the on_event callbacks to optionally modify the event.
+            modified_event = await plugin_manager.run_on_event_callback(
+                invocation_context=invocation_context, event=event
+            )
+            if modified_event:
+              event = modified_event
+              logger.debug('Modified event: %s', event)
+              _apply_run_config_custom_metadata(
+                  event, invocation_context.run_config
+              )
+
             if event.partial is not True:
               await self.session_service.append_event(
                   session=session, event=event
               )
 
-          # Step 3: Run the on_event callbacks to optionally modify the event.
-          modified_event = await plugin_manager.run_on_event_callback(
-              invocation_context=invocation_context, event=event
-          )
-          if modified_event:
-            _apply_run_config_custom_metadata(
-                modified_event, invocation_context.run_config
-            )
-            yield modified_event
-          else:
             yield event
 
-    # Step 4: Run the after_run callbacks to perform global cleanup tasks or
+    # Step 3: Run the after_run callbacks to perform global cleanup tasks or
     # finalizing logs and metrics data.
     # This does NOT emit any event.
     await plugin_manager.run_after_run_callback(
